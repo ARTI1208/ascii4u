@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">ascii4\\u</string>
+    <string name="input_native">Type letters</string>
+    <string name="input_ascii">Type ascii code</string>
+    <string name="result_native">Get normal string</string>
+    <string name="result_ascii">Get ascii code</string>
+    <string name="native2ascii">native2ascii</string>
+    <string name="ascii2native">ascii2native</string>
+    <string name="clear_input">Clear input</string>
+    <string name="convert_latin">Convert latin symbols</string>
+    <string name="convert_digits">Convert digits</string>
+    <string name="show_keypad">Ascii keypad</string>
+</resources>

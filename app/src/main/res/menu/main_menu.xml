@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/clear"
+        android:title="@string/clear_input"
+        android:icon="@drawable/ic_clear_input"
+        android:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/latin"
+        android:title="@string/convert_latin"
+        android:checkable="true"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/digits"
+        android:title="@string/convert_digits"
+        android:checkable="true"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/ascii_keypad"
+        android:title="@string/show_keypad"
+        android:visible="false"
+        android:checkable="true"
+        android:showAsAction="never" />
+</menu>
