@@ -3,245 +3,203 @@ package ru.art2000.ascii4u
 import android.app.Activity
 import android.content.SharedPreferences
 import android.graphics.Color
-import android.opengl.Visibility
 import android.os.Bundle
-import android.preference.PreferenceManager
 import android.text.Editable
 import android.text.Layout
 import android.text.Selection
 import android.text.TextWatcher
-import android.util.DisplayMetrics
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
-import kotlinx.android.synthetic.main.activity_main.*
-import java.net.IDN.toASCII
+import androidx.preference.PreferenceManager
+import ru.art2000.ascii4u.databinding.ActivityMainBinding
 import java.util.*
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 class MainActivity : Activity() {
 
-    private var string2ascii = true
-    private var asciiFormat = "[Uu][0-9a-fA-F]{4}"
-    private var backslash = '\\'
+    private val asciiFormat = "[Uu][0-9a-fA-F]{4}"
+    private val backslash = '\\'
     private var convertDigits = false
     private var convertLatin = false
     private var keypad = true
-    private var pattern: Pattern = Pattern.compile(asciiFormat)
-    private lateinit var prefs: SharedPreferences
-    private lateinit var menuItem: MenuItem
-    private lateinit var inputLayout: Layout
-    private lateinit var resultLayout: Layout
+    private var string2ascii = true
+    private val pattern: Pattern = Pattern.compile(asciiFormat)
+    private val prefs: SharedPreferences by lazy { PreferenceManager.getDefaultSharedPreferences(this) }
+    private lateinit var menuItemUseKeypad: MenuItem
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        prefs = PreferenceManager.getDefaultSharedPreferences(this)
+    private val viewBinding by lazy { ActivityMainBinding.inflate(layoutInflater) }
 
-        convertLatin = prefs.getBoolean("latin", false)
-        convertDigits = prefs.getBoolean("digits", false)
-        keypad = prefs.getBoolean("keypad", true)
-        string2ascii = prefs.getBoolean("s2a", true)
+    companion object {
 
-
-//        input.maxHeight = inputMaxHeight()
-
-//        asciiBtns.addOnLayoutChangeListener({ view: View, i: Int, i1: Int, i2: Int, i3: Int, i4: Int, i5: Int, i6: Int, i7: Int ->
-//            input.maxHeight = inputMaxHeight()
-//        })
-
-//        asciiBtns.viewTreeObserver.addOnGlobalLayoutListener {
-//            input.maxHeight = inputMaxHeight()
-//        }
-
-
-        if (string2ascii) {
-            swap.setText(R.string.native2ascii)
-            asciiBtns.visibility = View.GONE
-        } else {
-            swap.setText(R.string.ascii2native)
-            if (keypad)
-                asciiBtns.visibility = View.VISIBLE
-            else
-                asciiBtns.visibility = View.GONE
-        }
-
-        input_line_indicator_sv.setPadding(0, input.paddingTop, 0, input.paddingBottom)
-        result_line_indicator_sv.setPadding(0, result.paddingTop, 0, result.paddingBottom)
-
-
-        buttonDEL.setOnLongClickListener {
-            input.setText("")
-            return@setOnLongClickListener true
-        }
-
-        result.setOnClickListener {
-            hideKeyboard(result)
-        }
-
-        result.setOnTouchListener { v, _ ->
-            kotlin.run {
-                v.requestFocus()
-                hideKeyboard(result)
-                return@setOnTouchListener false
-            }
-        }
-
-        input.setOnTouchListener { v, _ ->
-            kotlin.run {
-                if (!string2ascii) {
-                    v.requestFocus()
-                    hideKeyboard(input)
-                }
-                return@setOnTouchListener false
-            }
-        }
-
-        input.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            kotlin.run {
-                input_line_indicator_sv.scrollY = scrollY
-
-            }
-        }
-
-        input_line_indicator_sv.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            kotlin.run {
-                input.scrollY = scrollY
-            }
-        }
-
-        result.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            kotlin.run {
-//                Log.d("scroll", "scr$scrollY lh${result.lineHeight}")
-                result_line_indicator_sv.scrollY = scrollY
-            }
-        }
-
-        result_line_indicator_sv.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            kotlin.run {
-                result.scrollY = scrollY
-            }
-        }
-
-        input.setOnClickListener {
-            if (!string2ascii)
-                hideKeyboard(input)
-        }
-
-        swap.setOnClickListener {
-            if (string2ascii) {
-                input.hint = resources.getString(R.string.input_ascii)
-                result.hint = resources.getString(R.string.result_native)
-                string2ascii = false
-            } else {
-                input.hint = resources.getString(R.string.input_native)
-                result.hint = resources.getString(R.string.result_ascii)
-                string2ascii = true
-            }
-            if (result.text.toString() != "")
-                input.text = result.text
-            prefs.edit().putBoolean("s2a", string2ascii).apply()
-            if (string2ascii) {
-                swap.setText(R.string.native2ascii)
-                asciiBtns.visibility = View.GONE
-                menuItem.isVisible = false
-            } else {
-                swap.setText(R.string.ascii2native)
-                hideKeyboard(input)
-                menuItem.isVisible = true
-                if (keypad)
-                    asciiBtns.visibility = View.VISIBLE
-                else
-                    asciiBtns.visibility = View.GONE
-            }
-            input.maxHeight = inputMaxHeight()
-        }
-
-        input.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-//                Log.d("before", "start $start | count $count | after $after")
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (string2ascii)
-                    result.setText(toASCII(input.text.toString()))
-                else
-                    result.setText(toNormalString(input.text.toString()))
-//                result.scrollTo(0, input.scrollY)
-//                result_line_indicator_sv.scrollBy(0, 10)
-                input.invalidate()
-                input.requestLayout()
-                result.invalidate()
-                result.requestLayout()
-                countLines()
-//                Log.d("onchange", "start $start | count $count")
-            }
-
-
-            override fun afterTextChanged(s: Editable?) {
-
-                if (getCurLineNum() * result.lineHeight != 0) {
-                    result.scrollY = getCurLineNum() * result.lineHeight
-                    result_line_indicator_sv.scrollY = getCurLineNum() * result.lineHeight
-                }
-//                Log.d("line num", getLineCounterLineNum().toString())
-            }
-        })
-
-
-
+        private const val KEY_TRANSLATE_LATIN = "latin"
+        private const val KEY_TRANSLATE_DIGITS = "digits"
+        private const val KEY_USE_KEYPAD = "keypad"
+        private const val KEY_MODE = "s2a"
+        private const val KEY_INPUT_VALUE = "input"
 
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(viewBinding.root)
+
+        convertLatin = prefs.getBoolean(KEY_TRANSLATE_LATIN, false)
+        convertDigits = prefs.getBoolean(KEY_TRANSLATE_DIGITS, false)
+        keypad = prefs.getBoolean(KEY_USE_KEYPAD, true)
+        string2ascii = prefs.getBoolean(KEY_MODE, true)
+
+        if (string2ascii) {
+            viewBinding.swap.setText(R.string.native2ascii)
+            viewBinding.asciiBtns.visibility = View.GONE
+        } else {
+            viewBinding.swap.setText(R.string.ascii2native)
+            viewBinding.asciiBtns.visibility = if (keypad) View.VISIBLE else View.GONE
+        }
+
+        viewBinding.inputLineIndicatorSv.setPadding(0, viewBinding.input.paddingTop, 0, viewBinding.input.paddingBottom)
+        viewBinding.resultLineIndicatorSv.setPadding(0, viewBinding.result.paddingTop, 0, viewBinding.result.paddingBottom)
+
+        viewBinding.buttonDEL.setOnLongClickListener {
+            viewBinding.input.setText("")
+            return@setOnLongClickListener true
+        }
+
+        viewBinding.result.setOnClickListener {
+            hideKeyboard(viewBinding.result)
+        }
+
+        viewBinding.result.setOnClickListener { v ->
+            v.requestFocus()
+            hideKeyboard(viewBinding.result)
+        }
+
+        viewBinding.input.setOnClickListener { v ->
+            if (!string2ascii || !keypad) {
+                v.requestFocus()
+                hideKeyboard(viewBinding.input)
+            }
+        }
+
+        viewBinding.input.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            viewBinding.inputLineIndicatorSv.scrollY = scrollY
+        }
+
+        viewBinding.inputLineIndicatorSv.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            viewBinding.input.scrollY = scrollY
+        }
+
+        viewBinding.result.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            viewBinding.resultLineIndicatorSv.scrollY = scrollY
+        }
+
+        viewBinding.resultLineIndicatorSv.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            viewBinding.result.scrollY = scrollY
+        }
+
+        viewBinding.input.setOnClickListener {
+            if (!string2ascii)
+                hideKeyboard(viewBinding.input)
+        }
+
+        viewBinding.swap.setOnClickListener {
+            if (string2ascii) {
+                viewBinding.input.hint = resources.getString(R.string.input_ascii)
+                viewBinding.result.hint = resources.getString(R.string.result_native)
+                string2ascii = false
+            } else {
+                viewBinding.input.hint = resources.getString(R.string.input_native)
+                viewBinding.result.hint = resources.getString(R.string.result_ascii)
+                string2ascii = true
+            }
+            if (viewBinding.result.text.toString() != "")
+                viewBinding.input.text = viewBinding.result.text
+            prefs.edit().putBoolean(KEY_MODE, string2ascii).apply()
+            if (string2ascii) {
+                viewBinding.swap.setText(R.string.native2ascii)
+                viewBinding.asciiBtns.visibility = View.GONE
+                menuItemUseKeypad.isVisible = false
+            } else {
+                viewBinding.swap.setText(R.string.ascii2native)
+                hideKeyboard(viewBinding.input)
+                menuItemUseKeypad.isVisible = true
+                viewBinding.asciiBtns.visibility = if (keypad) View.VISIBLE else View.GONE
+            }
+            viewBinding.input.maxHeight = inputMaxHeight()
+        }
+
+        viewBinding.result.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            // Not the vest way but does the trick
+            if (left == oldLeft && top == oldTop && right == oldRight && bottom == oldBottom) {
+                return@addOnLayoutChangeListener
+            }
+
+            updateLinesCountAndScroll()
+        }
+
+        viewBinding.input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val resultText = if (string2ascii)
+                    toASCII(viewBinding.input.text.toString())
+                else
+                    toNormalString(viewBinding.input.text.toString())
+
+                viewBinding.result.setText(resultText)
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                prefs.edit().putString(KEY_INPUT_VALUE, s?.toString() ?: "").apply()
+            }
+        })
+    }
+
+    private fun updateLinesCountAndScroll() {
+        countLines()
+
+        val currentLineHeight = getCurLineNum() * viewBinding.result.lineHeight
+
+        if (currentLineHeight != 0) {
+            viewBinding.result.scrollY = currentLineHeight
+            viewBinding.resultLineIndicatorSv.scrollY = currentLineHeight
+        }
+    }
+
     private fun countLines() {
-        prefs.edit().putString("input", input.text.toString()).apply()
         var rCounter = 1
         var iCounter = 1
         var rAppend = true
         var iAppend = true
-        if (result.layout == null) {
-            Log.d("WARNING", "EditText layout is null! Trying to load backuped...")
-            if (inputLayout == null || resultLayout == null) {
-                Log.d("ERROR", "One of EditTexts layout is null! Aborting...")
-                return
-            }
-            val tmpLayout = inputLayout
-            inputLayout = resultLayout
-            resultLayout = tmpLayout
-        } else {
-            resultLayout = result.layout
-            inputLayout = input.layout
-        }
-        input_line_indicator.text = ""
-        result_line_indicator.text = ""
-        val count = if (resultLayout.lineCount > inputLayout.lineCount) resultLayout.lineCount else inputLayout.lineCount
+
+        viewBinding.inputLineIndicator.text = ""
+        viewBinding.resultLineIndicator.text = ""
+        val count = if (viewBinding.result.layout.lineCount > viewBinding.input.layout.lineCount) viewBinding.result.layout.lineCount else viewBinding.input.layout.lineCount
         for (ind in 0 until count) {
-            if (ind < resultLayout.lineCount) {
-                val rStart = resultLayout.getLineStart(ind)
-                val rEnd = resultLayout.getLineEnd(ind)
-                val rVisStr = result.text.substring(rStart, rEnd)
+            if (ind < viewBinding.result.layout.lineCount) {
+                val rStart = viewBinding.result.layout.getLineStart(ind)
+                val rEnd = viewBinding.result.layout.getLineEnd(ind)
+                val rVisStr = viewBinding.result.text.substring(rStart, rEnd)
                 if (rAppend) {
-                    result_line_indicator.append(rCounter.toString() + "\n")
+                    viewBinding.resultLineIndicator.append(rCounter.toString() + "\n")
                     rCounter++
                 } else
-                    result_line_indicator.append("\n")
+                    viewBinding.resultLineIndicator.append("\n")
                 rAppend = rVisStr.endsWith("\n")
             }
-            if (ind < inputLayout.lineCount) {
-//                val iStart = inputLayout.getLineStart(ind)
-//                val iEnd = inputLayout.getLineEnd(ind)
-//                val iVisStr = input.text.substring(iStart, iEnd)
-                val iVisStr = getVisLine(ind, inputLayout)
+            if (ind < viewBinding.input.layout.lineCount) {
+                val iVisStr = getVisLine(ind, viewBinding.input.layout)
                 if (iAppend) {
-                    input_line_indicator.append(" " + iCounter.toString() + "\n")
+                    viewBinding.inputLineIndicator.append(" $iCounter\n")
                     iCounter++
                 } else
-                    input_line_indicator.append("\n")
+                    viewBinding.inputLineIndicator.append("\n")
                 iAppend = iVisStr.endsWith("\n")
             }
         }
@@ -267,7 +225,7 @@ class MainActivity : Activity() {
             val item = menu.getItem(i)
             if (item.isCheckable) {
                 if (item.itemId == R.id.ascii_keypad)
-                    menuItem = item
+                    menuItemUseKeypad = item
                 item.isChecked = when (item.itemId) {
                     R.id.latin -> {
                         convertLatin
@@ -282,45 +240,47 @@ class MainActivity : Activity() {
                 }
             }
         }
-        val inputTxt = prefs.getString("input", "")
+        val inputTxt = prefs.getString(KEY_INPUT_VALUE, "")
         if (inputTxt != "")
-            input.setText(inputTxt)
-        menu.getItem(3)?.isVisible = !string2ascii
-        input.maxHeight = inputMaxHeight()
+            viewBinding.input.setText(inputTxt)
+        menuItemUseKeypad.isVisible = !string2ascii
+        viewBinding.input.maxHeight = inputMaxHeight()
         return super.onCreateOptionsMenu(menu)
     }
 
-    override fun onMenuItemSelected(featureId: Int, item: MenuItem?): Boolean {
-        if (item?.isCheckable!!)
+    override fun onMenuItemSelected(featureId: Int, item: MenuItem): Boolean {
+        if (item.isCheckable)
             item.isChecked = !item.isChecked
         when (item.itemId) {
             R.id.latin -> {
                 convertLatin = item.isChecked
-                prefs.edit().putBoolean("latin", convertLatin).apply()
+                prefs.edit().putBoolean(KEY_TRANSLATE_LATIN, convertLatin).apply()
             }
             R.id.digits -> {
                 convertDigits = item.isChecked
-                prefs.edit().putBoolean("digits", convertDigits).apply()
+                prefs.edit().putBoolean(KEY_TRANSLATE_DIGITS, convertDigits).apply()
             }
             R.id.ascii_keypad -> {
                 keypad = item.isChecked
-                prefs.edit().putBoolean("keypad", keypad).apply()
+                prefs.edit().putBoolean(KEY_USE_KEYPAD, keypad).apply()
                 if (keypad)
-                    asciiBtns.visibility = View.VISIBLE
+                    viewBinding.asciiBtns.visibility = View.VISIBLE
                 else
-                    asciiBtns.visibility = View.GONE
-                input.maxHeight = inputMaxHeight()
+                    viewBinding.asciiBtns.visibility = View.GONE
+                viewBinding.input.maxHeight = inputMaxHeight()
             }
             R.id.clear -> {
-                input.setText("")
+                viewBinding.input.setText("")
             }
         }
 
-
-        if (string2ascii)
-            result.setText(toASCII(input.text.toString()))
+        val resultText = if (string2ascii)
+            toASCII(viewBinding.input.text.toString())
         else
-            result.setText(toNormalString(input.text.toString()))
+            toNormalString(viewBinding.input.text.toString())
+
+        viewBinding.result.setText(resultText)
+
         countLines()
         return super.onMenuItemSelected(featureId, item)
     }
@@ -366,9 +326,9 @@ class MainActivity : Activity() {
             }
         }
         if (normalString.toString().contains("ERROR")) {
-            result.setTextColor(Color.RED)
+            viewBinding.result.setTextColor(Color.RED)
         } else {
-            result.setTextColor(input.currentTextColor)
+            viewBinding.result.setTextColor(viewBinding.input.currentTextColor)
         }
 
         return if (normalString.toString().contains("ERROR"))
@@ -436,13 +396,13 @@ class MainActivity : Activity() {
 
     private fun isLatinChar(c: Char): Boolean {
         val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        return alphabet.contains(c) or alphabet.toLowerCase().contains(c)
+        return alphabet.contains(c) or alphabet.toLowerCase(Locale.ROOT).contains(c)
     }
 
     fun btnClick(v: View) {
-        if (!input.isFocused) {
-            input.requestFocus()
-            input.setSelection(input.text.length)
+        if (!viewBinding.input.isFocused) {
+            viewBinding.input.requestFocus()
+            viewBinding.input.setSelection(viewBinding.input.text.length)
         }
         val id = v.id
         val newInp: String
@@ -457,8 +417,8 @@ class MainActivity : Activity() {
                 findViewById<Button>(id).text.toString()
             }
         }
-        val text = input.text
-        val pos = input.selectionStart
+        val text = viewBinding.input.text
+        val pos = viewBinding.input.selectionStart
         var newPos = pos + 1
         if (id == R.id.buttonU)
             newPos = pos + 2
@@ -476,49 +436,28 @@ class MainActivity : Activity() {
             }
         }
         val newInpTxt = text.substring(0, pos - p) + str + text.substring(pos, text.length)
-        input.setText(newInpTxt)
-        input.setSelection(newPos)
+        viewBinding.input.setText(newInpTxt)
+        viewBinding.input.setSelection(newPos)
     }
 
     private fun hideKeyboard(et: EditText) {
-        val imm: InputMethodManager = this.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm: InputMethodManager = this.getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(et.windowToken, 0)
     }
 
-    private fun inputMaxHeight() : Int {
-        var newHeight =  (main_layout.height - swap.height) / 2
-        if (asciiBtns.visibility == View.VISIBLE)
-            newHeight = (main_layout.height - swap.height - asciiBtns.height) / 2
-        Log.d("height", "h ${main_layout.height} | mh ${input.maxHeight} | nh $newHeight")
+    private fun inputMaxHeight(): Int {
+        var newHeight = (viewBinding.mainLayout.height - viewBinding.swap.height) / 2
+        if (viewBinding.asciiBtns.visibility == View.VISIBLE)
+            newHeight = (viewBinding.mainLayout.height - viewBinding.swap.height - viewBinding.asciiBtns.height) / 2
         return newHeight
     }
 
-    private fun getCurLineNum() : Int {
-        val selStart = Selection.getSelectionStart(input.text)
-        val layout = if (input.layout == null) inputLayout else input.layout
-        if (selStart != -1)
-            return layout.getLineForOffset(selStart)
-        else
-            return -1
+    private fun getCurLineNum(): Int {
+        val selStart = Selection.getSelectionStart(viewBinding.input.text)
+        return if (selStart != -1) viewBinding.input.layout.getLineForOffset(selStart) else -1
     }
 
-    private fun getLineCounterLineNum() : Int {
-        val lastLine = getCurLineNum() + 1
-        var res = 0
-        val lines = input_line_indicator.text.lines()
-        val scanner = Scanner(input_line_indicator.text.toString())
-        for (i in 0 until lastLine) {
-//            Log.d("line$i", lines[i])
-            if (lines[i].length > 1 && lines[i][1].isDigit())
-                res++
-//            else
-//                Log.d("nondigit", "${getVisLine(i, inputLayout)[1]}")
-        }
-        scanner.close()
-        return res
-    }
-
-    private fun getVisLine(i : Int, etLayout: Layout) : String {
+    private fun getVisLine(i: Int, etLayout: Layout): String {
         val start = etLayout.getLineStart(i)
         val end = etLayout.getLineEnd(i)
         return etLayout.text.substring(start, end)
